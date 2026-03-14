@@ -63,7 +63,17 @@ class ActionHeroTurn(Action):
         battle.duck_weave_pending = False
 
         battle.hero.ebb_consumed_this_turn = False
-        battle.hero.energy_current = battle.hero.energy_base + battle.state.turn_energy_bonus
+        battle.hero.first_stab_played_this_turn = False
+        battle.hero.guarded_stacks = 0
+        battle.hero.kuma_double_attack_pending = 0
+
+        if battle.hero.carry_energy_to_next_turn:
+            battle.hero.energy_current = battle.hero.energy_current + battle.hero.energy_base + battle.state.turn_energy_bonus
+            battle.hero.carry_energy_to_next_turn = False
+            logger.log(f"      Carried over energy applied: now {battle.hero.energy_current}")
+        else:
+            battle.hero.energy_current = battle.hero.energy_base + battle.state.turn_energy_bonus
+
         battle.hero.block = 0
         self.draws_left = battle.hero.draw_count
         self.cleaned_up = False
@@ -118,6 +128,8 @@ class ActionCampaignEncounter(Action):
         campaign.state.battle_number += 1
         idx = campaign.state.battle_number
         enemy = campaign.encounters[idx - 1]
+
+        logger.log(f"  ActionBattleLoop: Encounter {idx} vs {enemy.name} starting. Select cards to use for the encounter.")
 
         selected_indices = campaign.select_battle_deck(enemy)
         if selected_indices is None:
