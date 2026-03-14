@@ -1,0 +1,51 @@
+#name
+  #cost,type,description,mouseover,implementation
+
+Stab:
+  cost: 0
+  type: starter
+  description: Deal 4 damage. 1st -> x2 damage.
+  mouseover: First Stab played each turn deals double damage.
+  implementation: 
+
+Swipe!:
+  cost: 1
+  type: starter
+  description: Kuma deals 8 damage.
+  mouseover: 
+  implementation:
+
+Shoot:
+  cost: 2
+  type: starter
+  description: Deal 12 damage, gain Unloaded. If Unloaded, instead clear Unloaded.
+  mouseover: Unloaded is automatically cleared at each reshuffle.
+  implementation: If 3 Shoot is played in a single shuffle, the first will deal 12 damage, the second will do no damage but clear Unloaded, the third will deal 12 damage.
+
+Defend:
+  cost: 1
+  type: starter
+  description: Gain 6 Block.
+  mouseover: 
+  implementation: Block cancels out incoming damage until start of next turn.
+
+Guard!:
+  cost: 1
+  type: starter
+  description: Attacked -> 0.75x damage and Kuma deals 8 damage.
+  mouseover: Each Guard gives 1 stack of Guarded which lasts until start of next turn. When attacked, lo
+  implementation:
+
+Macallan Double Cask:
+  cost: 0
+  type: starter
+  description: Gain 1 Energy. Keep unspent energy for next turn.
+  mouseover: 
+  implementation: Normally, Energy is set to 0 during start of turn. The turn after Macallan Double Cask, any leftover energy should be carried over into the next turn.
+
+Good Boy!:
+  cost: 1
+  type: starter
+  description: 1st Kuma attack -> 2x damage.
+  mouseover: The next attack by Kuma before the start of next turn deals double damage.
+  implementation: Currently applies to Swipe! and Guard!.
