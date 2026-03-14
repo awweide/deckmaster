@@ -2,10 +2,13 @@ import random
 
 from cards import (
     Card,
-    card_duck_and_weave,
-    card_pray_and_praise,
-    card_shoot_and_stab,
-    card_singe_and_sear,
+    card_defend,
+    card_good_boy,
+    card_guard,
+    card_macallan_double_cask,
+    card_shoot,
+    card_stab,
+    card_swipe,
     make_base_master,
 )
 from core import logger
@@ -56,6 +59,11 @@ class Hero(Character):
         self.energy_current = 3
         self.ebb_stacks = 0
         self.ebb_consumed_this_turn = False
+        self.first_stab_played_this_turn = False
+        self.unloaded = False
+        self.guarded_stacks = 0
+        self.kuma_double_attack_pending = 0
+        self.carry_energy_to_next_turn = False
 
     def reset_for_battle(self):
         super().reset_for_battle()
@@ -67,13 +75,32 @@ class Hero(Character):
         self.energy_current = self.energy_base
         self.ebb_stacks = 0
         self.ebb_consumed_this_turn = False
+        self.first_stab_played_this_turn = False
+        self.unloaded = False
+        self.guarded_stacks = 0
+        self.kuma_double_attack_pending = 0
+        self.carry_energy_to_next_turn = False
+
+
+    def _take_with_block(self, amount, dmg_type="neutral", source=None):
+        incoming = amount
+        if self.guarded_stacks > 0 and source is not None:
+            incoming = max(0, int(amount * 0.75))
+            self.guarded_stacks -= 1
+            logger.log(f"      Guarded triggers: incoming damage reduced to {incoming}; Kuma counterattacks for 8.")
+            if hasattr(source, "receive_damage"):
+                self._deal_direct_damage_to(source, 8, "martial", attack_source="kuma")
+        return super()._take_with_block(incoming, dmg_type, source)
 
     def _clone_card(self, card_template):
         upgrades = {
-            "Pray&Praise": card_pray_and_praise,
-            "Singe&Sear": card_singe_and_sear,
-            "Shoot&Stab": card_shoot_and_stab,
-            "Duck&Weave": card_duck_and_weave,
+            "Stab": card_stab,
+            "Swipe!": card_swipe,
+            "Shoot": card_shoot,
+            "Defend": card_defend,
+            "Guard!": card_guard,
+            "Macallan Double Cask": card_macallan_double_cask,
+            "Good Boy!": card_good_boy,
         }
         if card_template.name in upgrades:
             return upgrades[card_template.name]()
@@ -83,11 +110,18 @@ class Hero(Character):
             card_template.damage,
             card_template.block,
             card_template.dmg_type,
+            card_template.description,
+            card_template.mouseover,
             card_template.special,
+            card_template.attack_source,
         )
 
-    def _deal_direct_damage_to(self, enemy, base_amount, dmg_type):
+    def _deal_direct_damage_to(self, enemy, base_amount, dmg_type, attack_source="hero"):
         total = base_amount + (self.strength_base + self.strength_current)
+        if attack_source == "kuma" and self.kuma_double_attack_pending > 0:
+            total *= 2
+            self.kuma_double_attack_pending -= 1
+            logger.log(f"      Good Boy! triggers: Kuma attack doubled to {total}.")
         return enemy.receive_damage(total, dmg_type, source=self)
 
     def _gain_block_internal(self, amount, battle):
@@ -107,6 +141,9 @@ class Hero(Character):
                     self.deck = self.discard[:]
                     random.shuffle(self.deck)
                     self.discard = []
+                    if self.unloaded:
+                        self.unloaded = False
+                        logger.log("      Unloaded cleared on reshuffle.")
                 else:
                     return
             card = self.deck.pop(0)
@@ -121,8 +158,24 @@ class Hero(Character):
 
         self.energy_current -= card.cost
         logger.log(f"    {card.name}: playing (cost {card.cost}, energy left {self.energy_current})")
-        if card.damage:
-            self._deal_direct_damage_to(battle.enemy, card.damage, card.dmg_type)
+
+        if card.name == "Stab":
+            damage = card.damage * 2 if not self.first_stab_played_this_turn else card.damage
+            if not self.first_stab_played_this_turn:
+                logger.log(f"      First Stab this turn: damage doubled to {damage}.")
+                self.first_stab_played_this_turn = True
+            self._deal_direct_damage_to(battle.enemy, damage, card.dmg_type, attack_source="hero")
+        elif card.name == "Shoot":
+            if self.unloaded:
+                self.unloaded = False
+                logger.log("      Shoot: Unloaded was present, so no damage; Unloaded cleared.")
+            else:
+                self._deal_direct_damage_to(battle.enemy, card.damage, card.dmg_type, attack_source="hero")
+                self.unloaded = True
+                logger.log("      Shoot: dealt damage and gained Unloaded.")
+        elif card.damage:
+            self._deal_direct_damage_to(battle.enemy, card.damage, card.dmg_type, attack_source=card.attack_source)
+
         if card.block:
             self._gain_block_internal(card.block, battle)
 
@@ -136,10 +189,7 @@ class Hero(Character):
             else:
                 card.special(self, battle, battle.enemy)
 
-        if card.name == "Rot":
-            logger.log("      Rot dissipates and is removed from deck.")
-        else:
-            self.limbo.append(card)
+        self.limbo.append(card)
 
     def end_turn_cleanup(self):
         while self.limbo:

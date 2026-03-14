@@ -2,7 +2,7 @@ import random
 import tkinter as tk
 from tkinter import ttk
 
-from cards import REWARD_POOL
+from cards import make_reward_pool
 from characters import Hero, Lycanoid, Ooze, Zombie
 from core import Engine, logger
 from rules import (
@@ -64,7 +64,7 @@ class Campaign(Engine):
         return list(range(12))
 
     def select_reward(self):
-        offered = random.sample(REWARD_POOL, 2)
+        offered = random.sample(make_reward_pool(), 2)
         if self.app:
             cards = [f() for f in offered]
             selected = self.app.select_cards(cards, 1, "Select 1 reward to add to master deck", columns=2)
@@ -108,6 +108,8 @@ class CardGridSelector(tk.Toplevel):
             canvas.create_text(10, 12, anchor="nw", text=line1, font=("TkDefaultFont", 10, "bold"))
             canvas.create_text(10, 34, anchor="nw", text=line2, font=("TkDefaultFont", 9))
             canvas.bind("<Button-1>", lambda _e, i=idx: self.toggle(i))
+            canvas.bind("<Enter>", lambda _e, i=idx: self.show_mouseover(i))
+            canvas.bind("<Leave>", lambda _e: self.clear_mouseover())
             self.card_widgets.append((canvas, rect))
 
         bottom = ttk.Frame(self)
@@ -118,6 +120,17 @@ class CardGridSelector(tk.Toplevel):
         self.confirm_btn.pack(side=tk.RIGHT)
 
         self.bind("<Escape>", lambda _e: self.cancel())
+
+        self.tooltip_var = tk.StringVar(value="")
+        self.tooltip_label = ttk.Label(self, textvariable=self.tooltip_var, wraplength=700, justify=tk.LEFT)
+        self.tooltip_label.pack(fill=tk.X, padx=8, pady=(0, 8))
+
+    def show_mouseover(self, idx):
+        text = self.cards[idx].mouseover.strip() if getattr(self.cards[idx], "mouseover", "") else "No additional details."
+        self.tooltip_var.set(text)
+
+    def clear_mouseover(self):
+        self.tooltip_var.set("")
 
     def toggle(self, idx):
         if idx in self.selected:
